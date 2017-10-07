@@ -28,18 +28,12 @@ public class radar_plain : MonoBehaviour {
     {
         con.add("img");
         bmf = new AndroidJavaClass("android.graphics.BitmapFactory");
-        con.add("bmf");
-        byte[] stream = new byte[0];
-        con.add("byt");
         AndroidJavaClass bm = new AndroidJavaClass("android.graphics.Bitmap");
-        con.add("bm");
-    
         con.add("www send");
         WWW www = new WWW("http://radar.weather.gov/ridge/RadarImg/N0R/OKX_N0R_0.gif");
         yield return www;
         con.add("www recv " + www.bytesDownloaded);
         AndroidJavaObject bmo = bmf.CallStatic<AndroidJavaObject>("decodeByteArray",new object[] { www.bytes, 0, www.bytesDownloaded });
-        con.add("huh");
         int h = bmo.Call<int>("getHeight", new object[] { });
         con.add("height " + h);
         int w = bmo.Call<int>("getWidth", new object[] { });
@@ -56,35 +50,22 @@ public class radar_plain : MonoBehaviour {
         gpargs[4].i = 0;
         gpargs[5].i = w;
         gpargs[6].i = h;
-        con.add("gpargs");
         AndroidJNI.CallVoidMethod(bmo.GetRawObject(), AndroidJNI.GetMethodID(bm.GetRawClass(), "getPixels","([IIIIIII)V"), gpargs);
-        con.add("getpixs");
         int[] apixs;
-        apixs = new int[w * h];
         apixs = AndroidJNI.FromIntArray(pixs);
-        con.add("apixs");
         for (int i = 0; i < h; i++)
         {
             for(int j = 0; j < w; j++)
             {
-                //con.add("(" + j + "," + i + ")");
-                //int pixel = bmo.Call<int>("getPixel", new object[] { j, i });
                 int pixel = apixs[j + w * i];
-                //con.add("pixel " + pixel);
                 Color32 pc = ConvertAndroidColor(pixel);
-                //con.add("color");
                 texture.SetPixel(j,i,pc);
-                //con.add("Set pizxel");
             }
         }
         con.add("pix2" + apixs.GetHashCode());
         texture.Apply();
-        con.add("txt");
         plane = transform.GetChild(0);
         plane.GetComponent<Renderer>().material.mainTexture = texture;
-        con.add("mesh");
-        
-
         yield return "good";
     }
 
