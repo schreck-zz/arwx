@@ -11,6 +11,7 @@ public class radar_plain : MonoBehaviour {
 
     void Start () {
         con.add("start");
+        StartCoroutine(world());
         StartCoroutine(img());
     }
 
@@ -22,6 +23,40 @@ public class radar_plain : MonoBehaviour {
         c.r = (byte)((aCol >> 16) & 0xFF);
         c.a = (byte)((aCol >> 24) & 0xFF);
         return c;
+    }
+
+    IEnumerator world()
+    {
+        con.add("world file");
+        WWW www = new WWW("http://radar.weather.gov/ridge/RadarImg/N0R/OKX_N0R_0.gfw");
+        yield return www;
+        con.add("world file rcv " + www.bytesDownloaded);
+        string[] S_gfw = www.text.Split('\n'); // stringed gfw file
+        if(S_gfw.Length == 7)
+        {
+            bool worked = true;
+            float x_scale = 0f;
+            float y_scale = 0f;
+            float x = 0f;
+            float y = 0f;
+            worked = worked&&float.TryParse(S_gfw[0], out x_scale);
+            //worked = worked && float.TryParse(S_gfw[1], out a);
+            //worked = worked && float.TryParse(S_gfw[2], out b);
+            worked = worked && float.TryParse(S_gfw[3], out y_scale);
+            worked = worked && float.TryParse(S_gfw[4], out x);
+            worked = worked && float.TryParse(S_gfw[5], out y);
+            if (!worked)
+            {
+                Debug.Log("couldnt parse world file");
+            }
+            Debug.Log(x_scale + " " + y_scale + " " + x + " " + y);
+        }
+        else
+        {
+            Debug.Log("wrong length in gfw? "+S_gfw.Length);
+        }
+
+
     }
 
     IEnumerator img()
@@ -67,6 +102,11 @@ public class radar_plain : MonoBehaviour {
         plane = transform.GetChild(0);
         plane.GetComponent<Renderer>().material.mainTexture = texture;
         yield return "good";
+    }
+
+    public void center_on_location(LocationInfo loc)
+    {
+
     }
 
     // Update is called once per frame
