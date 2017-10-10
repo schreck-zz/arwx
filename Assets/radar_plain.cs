@@ -8,9 +8,13 @@ public class radar_plain : MonoBehaviour {
     private Texture newtexture;
     private AndroidJavaClass bmf;
     public consoler con;
+    private float xx;
+    private float zz;
 
     void Start () {
         con.add("start");
+        zz = 0f;
+        xx = 0f;
         StartCoroutine(world());
         StartCoroutine(img());
     }
@@ -50,6 +54,16 @@ public class radar_plain : MonoBehaviour {
                 Debug.Log("couldnt parse world file");
             }
             Debug.Log(x_scale + " " + y_scale + " " + x + " " + y);
+            float x_loc = -73.925f;
+            float y_loc =  40.662f;
+            xx = 5*(.5f+(x_loc - x) / (x_scale * 600)); // in terms of scaled x world coords, not offset by the half x we need.
+            // we are hard coding the width and starting location, this whole thing as to wait till the image loads, and the gps resolves
+            // and handle when one of those three required things dont happen
+            // observed from image in pixels:
+            //  -93,-19
+            zz = 5 * (.5f + (y_loc - y) / (y_scale * 550));
+
+            Debug.Log("px offset (" + ((x_loc - x) / (x_scale) - 300) + "," + (275 - (y_loc - y) / (y_scale))+")");  // matches observed -112,-20
         }
         else
         {
@@ -111,6 +125,7 @@ public class radar_plain : MonoBehaviour {
 
     // Update is called once per frame
     void Update () {
+        transform.position = new Vector3(xx, 30f, zz);
     }
 }
 ;
