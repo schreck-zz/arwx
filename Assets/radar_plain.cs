@@ -2,6 +2,31 @@
 using System.Collections.Generic;
 using UnityEngine;
 
+public class RadarLoc
+{
+    public Vector2 corner; // center of the radar image (dg)
+    public Vector2 scale; // scale of pixels (dg)
+    public int width; // width (px)
+    public int height; // height (px)
+    // TODO rotation (dg)?
+    // TODO virtual scale (m)?
+    public RadarLoc(float corner_x,float corner_y,float scale_x,float scale_y,int w,int h)
+    {
+        corner = new Vector2(corner_x, corner_y);
+        scale = new Vector2(scale_x, scale_y);
+        width = w;
+        height = h;
+    }
+    public Vector2 find_offset(LocationInfo loc)
+    {
+        Vector2 offset = new Vector2(
+              10 * (.5f + (loc.longitude - corner.x) / (scale.x * w))
+            - 10 * (.5f - (loc.latitude  - corner.y) / (scale.y * h)));
+        return offset;
+    }
+
+}
+
 public class radar_plain : MonoBehaviour {
 
     private Transform plane;
@@ -56,14 +81,9 @@ public class radar_plain : MonoBehaviour {
             Debug.Log(x_scale + " " + y_scale + " " + x + " " + y);
             float x_loc = -73.925f;
             float y_loc =  40.662f;
-            xx = 10*(.5f+(x_loc - x) / (x_scale * 600)); // in terms of scaled x world coords, not offset by the half x we need.
-            // we are hard coding the width and starting location, this whole thing as to wait till the image loads, and the gps resolves
-            // and handle when one of those three required things dont happen
-            // observed from image in pixels:
-            //  -93,-19
-            zz = -10 * (.5f - (y_loc - y) / (y_scale * 550));
 
-            Debug.Log("px offset (" + ((x_loc - x) / (x_scale) - 300) + "," + (275 - (y_loc - y) / (y_scale))+")");  // matches observed -112,-20
+            xx =  10 * (.5f + (x_loc - x) / (x_scale * 600)); // in terms of scaled x world coords, not offset by the half x we need.
+            zz = -10 * (.5f - (y_loc - y) / (y_scale * 550));
         }
         else
         {
@@ -120,12 +140,12 @@ public class radar_plain : MonoBehaviour {
 
     public void center_on_location(LocationInfo loc)
     {
-
+        
     }
 
     // Update is called once per frame
     void Update () {
-        transform.position = new Vector3(xx, 0f, zz);
+        transform.position = new Vector3(xx, 5f, zz);
     }
 }
 ;
