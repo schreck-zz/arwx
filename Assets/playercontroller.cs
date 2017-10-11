@@ -8,6 +8,7 @@ public class playercontroller : MonoBehaviour {
     private Quaternion initRot;
     private LocationInfo loc;
     private string loc_status;
+    public radar_plain upton;
 
 	// Use this for initialization
 	void Start () {
@@ -58,6 +59,7 @@ public class playercontroller : MonoBehaviour {
             // Access granted and location value could be retrieved
             loc_status = "found";
             loc = Input.location.lastData;
+            upton.SetGps(loc);
         }
 
         // Stop service if there is no need to query location updates continuously

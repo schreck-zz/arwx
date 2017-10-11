@@ -53,11 +53,14 @@ public class radar_plain : MonoBehaviour {
         gps.y =  40.662f;
         wh.x = 600;
         wh.y = 550;
+        UpdateOffset();
     }
 
     public void SetGps(LocationInfo loc)
     {
         gps = new Vector2(loc.longitude, loc.latitude);
+        con.add("seting gps "+gps);
+        UpdateOffset();
     }
 
     private static Color32 ConvertAndroidColor(int aCol)
@@ -95,6 +98,7 @@ public class radar_plain : MonoBehaviour {
                 Debug.Log("couldnt parse world file");
             }
             gfw = new WorldFile(x, y, x_scale, y_scale);
+            UpdateOffset();
         }
         else
         {
@@ -148,13 +152,27 @@ public class radar_plain : MonoBehaviour {
         texture.Apply();
         plane = transform.GetChild(0);
         plane.GetComponent<Renderer>().material.mainTexture = texture;
+        UpdateOffset();
         yield return "good";
+    }
+
+    void UpdateOffset()
+    {
+        bool loaded = (gps.x != 0f) && (wh.x != 0) && (gfw != null);
+        if (loaded)
+        {
+            transform.position = new Vector3(
+                 10 * transform.localScale.x * (.5f + (gps.x - gfw.Corner.x) / (gfw.Scale.x * wh.x)),
+                transform.position.y,
+                - 10 *transform.localScale.y * (.5f - (gps.y - gfw.Corner.y) / (gfw.Scale.y * wh.y)));
+
+            con.add("updating offset " + transform.position);
+        }
     }
 
     void Update () {
         //transform.position = new Vector3(xx, 5f, zz);
         // wont work on the meridian or with 0 width images
-        bool loaded = (gps.x!=0f)&&(wh.x!=0)&&(gfw!=null);
 
     }
 }
