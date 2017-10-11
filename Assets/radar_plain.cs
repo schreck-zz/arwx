@@ -2,46 +2,62 @@
 using System.Collections.Generic;
 using UnityEngine;
 
-public class RadarLoc
+/*// given a location [loc] from gps or something, find the offset (x,z) to potision this radar plane
+public Vector2 find_offset(LocationInfo loc)
 {
-    public Vector2 corner; // center of the radar image (dg)
-    public Vector2 scale; // scale of pixels (dg)
-    public int width; // width (px)
-    public int height; // height (px)
-    // TODO rotation (dg)?
-    // TODO virtual scale (m)?
-    public RadarLoc(float corner_x,float corner_y,float scale_x,float scale_y,int w,int h)
-    {
-        corner = new Vector2(corner_x, corner_y);
-        scale = new Vector2(scale_x, scale_y);
-        width = w;
-        height = h;
-    }
-    public Vector2 find_offset(LocationInfo loc)
-    {
-        Vector2 offset = new Vector2(
-              10 * (.5f + (loc.longitude - corner.x) / (scale.x * w))
-            - 10 * (.5f - (loc.latitude  - corner.y) / (scale.y * h)));
-        return offset;
-    }
 
+    Vector2 offset = new Vector2(
+          10 * (.5f + (loc.longitude - corner.x) / (scale.x * w))
+        - 10 * (.5f - (loc.latitude  - corner.y) / (scale.y * h)));
+    return offset;
+}*/
+
+public class WorldFile
+{
+    public Vector2 Corner;
+    public Vector2 Scale;
+    //public Vector2 Rotation; //TODO
+    public WorldFile(float c_x, float c_y, float s_x, float s_y)
+    {
+        Corner = new Vector2(c_x, c_y);
+        Scale  = new Vector2(s_x, s_y);
+    }
 }
 
 public class radar_plain : MonoBehaviour {
 
-    private Transform plane;
-    private Texture newtexture;
-    private AndroidJavaClass bmf;
-    public consoler con;
-    private float xx;
-    private float zz;
+    private Transform plane; // child object 
+    public consoler con; // object specfic in-world debug log
+    // offset objects
+    private WorldFile gfw; // world file data
+    private Vector2 gps; // gps data
+    private Vector2Int wh; // width and height of image download pixels
 
     void Start () {
         con.add("start");
-        zz = 0f;
-        xx = 0f;
-        StartCoroutine(world());
-        StartCoroutine(img());
+        LoadRadarData("http://radar.weather.gov/ridge/RadarImg/N0R/OKX_N0R_0");
+#if UNITY_EDITOR
+        MockCrownHeights();
+#endif
+    }
+
+    public void LoadRadarData(string url)
+    {
+        StartCoroutine(world(url+".gfw"));
+        StartCoroutine(img(url+".gif"));
+    }
+
+    void MockCrownHeights()
+    {
+        gps.x = -73.925f;
+        gps.y =  40.662f;
+        wh.x = 600;
+        wh.y = 550;
+    }
+
+    public void SetGps(LocationInfo loc)
+    {
+        gps = new Vector2(loc.longitude, loc.latitude);
     }
 
     private static Color32 ConvertAndroidColor(int aCol)
@@ -54,10 +70,10 @@ public class radar_plain : MonoBehaviour {
         return c;
     }
 
-    IEnumerator world()
+    IEnumerator world(string url)
     {
-        con.add("world file");
-        WWW www = new WWW("http://radar.weather.gov/ridge/RadarImg/N0R/OKX_N0R_0.gfw");
+        con.add("world file send");
+        WWW www = new WWW(url);
         yield return www;
         con.add("world file rcv " + www.bytesDownloaded);
         string[] S_gfw = www.text.Split('\n'); // stringed gfw file
@@ -78,38 +94,31 @@ public class radar_plain : MonoBehaviour {
             {
                 Debug.Log("couldnt parse world file");
             }
-            Debug.Log(x_scale + " " + y_scale + " " + x + " " + y);
-            float x_loc = -73.925f;
-            float y_loc =  40.662f;
-
-            xx =  10 * (.5f + (x_loc - x) / (x_scale * 600)); // in terms of scaled x world coords, not offset by the half x we need.
-            zz = -10 * (.5f - (y_loc - y) / (y_scale * 550));
+            gfw = new WorldFile(x, y, x_scale, y_scale);
         }
         else
         {
             Debug.Log("wrong length in gfw? "+S_gfw.Length);
         }
-
-
     }
 
-    IEnumerator img()
+    IEnumerator img(string url)
     {
-        con.add("img");
-        bmf = new AndroidJavaClass("android.graphics.BitmapFactory");
-        AndroidJavaClass bm = new AndroidJavaClass("android.graphics.Bitmap");
-        con.add("www send");
-        WWW www = new WWW("http://radar.weather.gov/ridge/RadarImg/N0R/OKX_N0R_0.gif");
+        con.add("img send");
+        WWW www = new WWW(url);
         yield return www;
-        con.add("www recv " + www.bytesDownloaded);
+        con.add("img recv " + www.bytesDownloaded);
+        AndroidJavaClass bmf = new AndroidJavaClass("android.graphics.BitmapFactory");
+        AndroidJavaClass bm  = new AndroidJavaClass("android.graphics.Bitmap");
+        // this bitmapfactory class method returns a Bitmap object
         AndroidJavaObject bmo = bmf.CallStatic<AndroidJavaObject>("decodeByteArray",new object[] { www.bytes, 0, www.bytesDownloaded });
+        // we van figure out the width and height of the gif data
         int h = bmo.Call<int>("getHeight", new object[] { });
-        con.add("height " + h);
         int w = bmo.Call<int>("getWidth", new object[] { });
-        con.add("width " + w);
+        wh = new Vector2Int(w, h); // set the global wh for offsetment
+        // the trick is getting the pixels without calling the JNI to often i.e. _getPixel()_
+        // setup java inputs for BitMap.getPixels
         System.IntPtr pixs = AndroidJNI.NewIntArray(h * w);
-        var texture = new Texture2D(w, h, TextureFormat.ARGB32, false);
-        //bmo.Call("getPixels", new object[] { pixs, 0, w, 0, 0, w, h });
         jvalue[] gpargs;
         gpargs = new jvalue[7];
         gpargs[0].l = pixs;
@@ -119,9 +128,13 @@ public class radar_plain : MonoBehaviour {
         gpargs[4].i = 0;
         gpargs[5].i = w;
         gpargs[6].i = h;
+        // this is the same as `bmo.getPixels(pixs,0,w,0,0,w,h)` but in raw AndroidJNI calls because pixs is a pointer to an int[] buffer
         AndroidJNI.CallVoidMethod(bmo.GetRawObject(), AndroidJNI.GetMethodID(bm.GetRawClass(), "getPixels","([IIIIIII)V"), gpargs);
         int[] apixs;
         apixs = AndroidJNI.FromIntArray(pixs);
+        //
+        // paint a texture with the pixels
+        var texture = new Texture2D(w, h, TextureFormat.ARGB32, false);
         for (int i = 0; i < h; i++)
         {
             for(int j = 0; j < w; j++)
@@ -131,21 +144,18 @@ public class radar_plain : MonoBehaviour {
                 texture.SetPixel(j,i,pc);
             }
         }
-        con.add("pix2" + apixs.GetHashCode());
+        con.add("apixs " + apixs.GetHashCode());
         texture.Apply();
         plane = transform.GetChild(0);
         plane.GetComponent<Renderer>().material.mainTexture = texture;
         yield return "good";
     }
 
-    public void center_on_location(LocationInfo loc)
-    {
-        
-    }
-
-    // Update is called once per frame
     void Update () {
-        transform.position = new Vector3(xx, 5f, zz);
+        //transform.position = new Vector3(xx, 5f, zz);
+        // wont work on the meridian or with 0 width images
+        bool loaded = (gps.x!=0f)&&(wh.x!=0)&&(gfw!=null);
+
     }
 }
 ;
