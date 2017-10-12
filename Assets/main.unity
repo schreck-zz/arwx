@@ -137,7 +137,7 @@ RectTransform:
   m_PrefabInternal: {fileID: 0}
   m_GameObject: {fileID: 101695810}
   m_LocalRotation: {x: -0.043577887, y: -0.043577887, z: 0.0019026523, w: 0.99809736}
-  m_LocalPosition: {x: 749.1384, y: 424.114, z: 28.686314}
+  m_LocalPosition: {x: 748.1422, y: 424.10645, z: 28.599483}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_Children:
   - {fileID: 1387501648}
@@ -495,6 +495,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: f8a4dcfb8409408499b1015c0e674eb0, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
+  upton: {fileID: 1298843349}
 --- !u!222 &1039357429
 CanvasRenderer:
   m_ObjectHideFlags: 0
@@ -530,7 +531,7 @@ GameObject:
   - component: {fileID: 1298843348}
   - component: {fileID: 1298843349}
   m_Layer: 0
-  m_Name: radar_pane
+  m_Name: upton
   m_TagString: Untagged
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
