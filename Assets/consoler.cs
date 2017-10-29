@@ -26,6 +26,7 @@ public class consoler : MonoBehaviour {
     {
         text = line +"\n" + text;
         commit();
+        Debug.Log(line);
     }
 	
 	// Update is called once per frame

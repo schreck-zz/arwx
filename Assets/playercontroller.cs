@@ -66,15 +66,6 @@ public class playercontroller : MonoBehaviour {
         Input.location.Stop();
     }
 
-/*protected void OnGUI()
-{
-    GUI.skin.label.fontSize = Screen.width / 40;
-
-    GUILayout.Label("Orientation: " + Screen.orientation);
-    GUILayout.Label("input.gyro.attitude: " + Input.gyro.attitude);
-    GUILayout.Label("iphone width/font: " + Screen.width + " : " + GUI.skin.label.fontSize);
-}*/
-
 private static Quaternion GetGyro()
     {
         if (Input.gyro.enabled)
@@ -87,9 +78,17 @@ private static Quaternion GetGyro()
         }
     }
 
+    private string[] MockLocs = new string[] { "Crown Heights", "Utica", "Portsmouth", "Delaware" };
+    private int MockLoc_i =0;
+
     // Update is called once per frame
     void Update () {
-
+        if (Input.GetKeyUp(KeyCode.Space))
+        {
+            upton.MockLoc(MockLocs[MockLoc_i]);
+            Debug.Log(MockLocs[MockLoc_i]);
+            MockLoc_i = (MockLoc_i + 1) % MockLocs.Length;
+        }
         transform.localRotation = (Quaternion.Euler(90f,90f,-90f))*GetGyro()*initRot;
         transform.GetChild(0).GetChild(0).GetComponent<Text>().text = "<b>gyro:</b>" +
             "\neuler: " + GetGyro().eulerAngles +

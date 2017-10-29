@@ -37,7 +37,7 @@ public class radar_plain : MonoBehaviour {
         con.add("start");
         LoadRadarData("http://radar.weather.gov/ridge/RadarImg/N0R/OKX_N0R_0");
 #if UNITY_EDITOR
-        MockCrownHeights();
+        MockLoc("Utica");
 #endif
     }
 
@@ -47,12 +47,35 @@ public class radar_plain : MonoBehaviour {
         StartCoroutine(img(url+".gif"));
     }
 
-    void MockCrownHeights()
+    public void MockLoc(string place)
     {
-        gps.x = -73.925f;
-        gps.y =  40.662f;
         wh.x = 600;
         wh.y = 550;
+        if (place == "Crown Heights")
+        {
+            gps.x = -73.925f;
+            gps.y = 40.662f;
+        }
+        else if (place == "Utica")
+        {
+            gps.x = -75.7f;
+            gps.y = 43.4f;
+        }
+        else if (place == "Delaware")
+        {
+            gps.x = -75.7f;
+            gps.y = 39.5f;
+        }
+        else if (place == "Portsmouth")
+        {
+            gps.x = -70.16f;
+            gps.y = 43.4f;
+        }
+        else // Erie
+        {
+            gps.x = -80.087168f;
+            gps.y = 42.131154f;
+        }
         UpdateOffset();
     }
 
@@ -158,13 +181,25 @@ public class radar_plain : MonoBehaviour {
 
     void UpdateOffset()
     {
-        bool loaded = (gps.x != 0f) && (wh.x != 0) && (gfw != null);
+        bool loaded = (gps.x != 0f) && (wh.x != 0) && (gfw != null); // gps loaded, image width height loaded, and world file loaded 
+        // TODO promises?
         if (loaded)
         {
+            // lat
+            float plane_w = 10f * transform.localScale.x;
+            float dx_dg = gps.x - gfw.Corner.x; // distance from top right corner to gps lon (dg)
+            float dx_norm = dx_dg / (wh.x * gfw.Scale.x);
+            //float dx_game = dx_norm * plane_w;
+            // lon
+            float plane_h = 10f * transform.localScale.y;
+            float dy_dg = gps.y - gfw.Corner.y;
+            float dy_norm =  dy_dg / (wh.y * gfw.Scale.y);
+            //float dy_game = dy_norm * plane_h;
+            
             transform.position = new Vector3(
-                 10 * transform.localScale.x * (.5f + (gps.x - gfw.Corner.x) / (gfw.Scale.x * wh.x)),
+                 plane_w*(.5f - dx_norm),
                 transform.position.y,
-                - 10 *transform.localScale.y * (.5f - (gps.y - gfw.Corner.y) / (gfw.Scale.y * wh.y)));
+                plane_h*(.5f-dy_norm));
 
             con.add("updating offset " + transform.position);
         }
