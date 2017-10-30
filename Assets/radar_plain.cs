@@ -64,7 +64,7 @@ public class radar_plain : MonoBehaviour {
         else if (place == "Delaware")
         {
             gps.x = -75.7f;
-            gps.y = 39.5f;
+            gps.y = 38.2f;
         }
         else if (place == "Portsmouth")
         {
@@ -192,14 +192,14 @@ public class radar_plain : MonoBehaviour {
             //float dx_game = dx_norm * plane_w;
             // lon
             float plane_h = 10f * transform.localScale.y;
-            float dy_dg = gps.y - gfw.Corner.y;
+            float dy_dg = (-gps.y) + gfw.Corner.y;
             float dy_norm =  dy_dg / (wh.y * gfw.Scale.y);
             //float dy_game = dy_norm * plane_h;
             
             transform.position = new Vector3(
                  plane_w*(.5f - dx_norm),
                 transform.position.y,
-                plane_h*(.5f-dy_norm));
+                plane_h*((-.5f)-dy_norm));
 
             con.add("updating offset " + transform.position);
         }
