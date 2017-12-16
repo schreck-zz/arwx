@@ -9,6 +9,9 @@ public class playercontroller : MonoBehaviour {
     private LocationInfo loc;
     private string loc_status;
     public radar_plain r_prefab;
+    private Dictionary<string,bool> Show;
+    private string master_status;
+    private Dictionary<string,radar_plain> rads;
 
     IEnumerator check_location()
     {
@@ -47,10 +50,9 @@ public class playercontroller : MonoBehaviour {
             var sl = ListNearestStations(loc);
             foreach(string station in sl)
             {
-                Debug.Log(station);
-                var rad = Instantiate<radar_plain>(r_prefab);
-                rad.LoadRadarData(RadarURL(station));
-                rad.SetGps(loc);
+                rads.Add(station, Instantiate<radar_plain>(r_prefab));
+                rads[station].LoadRadarData(RadarURL(station));
+                rads[station].SetGps(loc);
             }
         }
 
@@ -148,6 +150,7 @@ public class playercontroller : MonoBehaviour {
     // Use this for initialization
     void Start()
     {
+        master_status = "init";
         if (SystemInfo.supportsGyroscope)
         {
             Input.gyro.enabled = true;
@@ -163,17 +166,20 @@ public class playercontroller : MonoBehaviour {
 #if UNITY_EDITOR
         Debug.Log(MockLoc("Utica"));
 #endif
+        rads = new Dictionary<string, radar_plain>();
+        Show = new Dictionary<string, bool>();
+        Show.Add("gyro",false);
+        Show.Add("compass",false);
+        Show.Add("gps",true);
+        Show.Add("master",true);
+        Show.Add("rads", true);
+        Debug.Log(Show);
     }
 
     // Update is called once per frame
     void Update () {
         if (Input.GetKeyUp(KeyCode.Space))
         {
-            foreach (Transform child in transform)
-            {
-                if (child.name != "Canvas")
-                    Destroy(child);
-            }
             //upton.MockLoc(MockLocs[MockLoc_i]);
             Debug.Log(MockLocs[MockLoc_i]);
             MockLoc_i = (MockLoc_i + 1) % MockLocs.Length;
@@ -181,22 +187,37 @@ public class playercontroller : MonoBehaviour {
             foreach (string station in st)
             {
                 Debug.Log(station);
-                var rad = Instantiate<radar_plain>(r_prefab, transform);
-                rad.transform.name = station;
-                rad.LoadRadarData(RadarURL(station));
-                rad.SetGps(MockLoc(MockLocs[MockLoc_i]));
-                rad.MockWH(new Vector2Int(600, 550));
+                rads.Add(station,Instantiate<radar_plain>(r_prefab));
+                rads[station].transform.name = station;
+                rads[station].LoadRadarData(RadarURL(station));
+                rads[station].SetGps(MockLoc(MockLocs[MockLoc_i]));
+                rads[station].MockWH(new Vector2Int(600, 550));
             }
 
         }
         transform.localRotation = (Quaternion.Euler(90f,90f,-90f))*GetGyro()*initRot;
-        transform.GetChild(0).GetChild(0).GetComponent<Text>().text = "<b>gyro:</b>" +
-            "\neuler: " + GetGyro().eulerAngles +
-            "\n<b>compass:</b>\nmag: " + Input.compass.magneticHeading.ToString() +
-            "\ntrue: " + Input.compass.trueHeading.ToString() +
-            "\n<b>gps:</b>\nstatus:" + loc_status +
+        // status display
+        string status_txt = "<i>STATUS</i>:"+master_status;
+        if (Show["gyro"]) 
+            status_txt += "\n<b>gyro:</b>" + "\neuler: " + GetGyro().eulerAngles;
+        if (Show["compass"])
+            status_txt += "\n<b>compass:</b>" + Input.compass.magneticHeading.ToString(); // + "\ntrue: " + Input.compass.trueHeading.ToString();
+        if(Show["gps"])
+            status_txt += "\n<b>gps:</b>"+ loc_status +
             "\nlon:" + loc.longitude +
             "\nlat:" + loc.latitude +
             "\nalt:" + loc.altitude;
+        if (Show["rads"])
+        {
+            status_txt += "\n<b>rads:</b>";
+            foreach (KeyValuePair<string, radar_plain> entry in rads)
+            {
+                status_txt += "\n " + entry.Key + ":" + entry.Value.Status();
+            }
+        }
+            
+        transform.GetChild(0).GetChild(0).GetComponent<Text>().text = status_txt;
+
+            
     }
 }

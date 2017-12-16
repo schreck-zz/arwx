@@ -38,6 +38,11 @@ public class radar_plain : MonoBehaviour {
         //LoadRadarData("http://radar.weather.gov/ridge/RadarImg/N0R/OKX_N0R_0");
     }
 
+    public string Status()
+    {
+        return "placeholder";
+    }
+
     public void LoadRadarData(string url)
     {
         StartCoroutine(world(url+".gfw"));
