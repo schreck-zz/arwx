@@ -45,8 +45,12 @@ public class playercontroller : MonoBehaviour {
             loc_status = "found";
             loc = Input.location.lastData;
             var sl = ListNearestStations(loc);
-            Debug.Log(sl);
-            //upton.SetGps(loc);
+            foreach(string station in sl)
+            {
+                Debug.Log(station);
+                var rad = Instantiate<radar_plain>(r_prefab,transform);
+                rad.LoadRadarData(RadarURL(station));
+            }
         }
 
         // Stop service if there is no need to query location updates continuously
@@ -65,6 +69,11 @@ public class playercontroller : MonoBehaviour {
         }
     }
 
+    private string RadarURL(string station)
+    {
+        return "http://radar.weather.gov/ridge/RadarImg/N0R/" + station + "_N0R_0";
+    }
+
     public List<string> ListNearestStations(Vector2 x)
     {
         int w = 600, h = 550;
@@ -79,15 +88,14 @@ public class playercontroller : MonoBehaviour {
         List<string> stations = new List<string>();
         for (int i = 0; i < names.Length; i++)
         {
-            if (lon[i] < x.x)
+            if (lon[i] < x.x) // to the right of left
             {
-                if (x.x > (lon[i] + w * x_scale[i]))
+                if (x.x < (lon[i] + w * x_scale[i])) // to the left of right
                 {
-                    if (lat[i] > x.y)
+                    if (lat[i] > x.y) // under top
                     {
-                        if (x.y > (lat[i] + h * y_scale[i]))
+                        if (x.y > (lat[i] + h * y_scale[i])) // over bottom
                         {
-                            Debug.Log("adding stations:" + names[i]);
                             stations.Add(names[i]);
                         }
                     }
@@ -164,6 +172,13 @@ public class playercontroller : MonoBehaviour {
             Debug.Log(MockLocs[MockLoc_i]);
             MockLoc_i = (MockLoc_i + 1) % MockLocs.Length;
             var st = ListNearestStations(MockLoc(MockLocs[MockLoc_i]));
+            foreach (string station in st)
+            {
+                Debug.Log(station);
+                var rad = Instantiate<radar_plain>(r_prefab, transform);
+                rad.LoadRadarData(RadarURL(station));
+                rad.SetGps(MockLoc(MockLocs[MockLoc_i]));
+            }
 
         }
         transform.localRotation = (Quaternion.Euler(90f,90f,-90f))*GetGyro()*initRot;
