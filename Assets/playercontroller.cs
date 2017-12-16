@@ -48,8 +48,9 @@ public class playercontroller : MonoBehaviour {
             foreach(string station in sl)
             {
                 Debug.Log(station);
-                var rad = Instantiate<radar_plain>(r_prefab,transform);
+                var rad = Instantiate<radar_plain>(r_prefab);
                 rad.LoadRadarData(RadarURL(station));
+                rad.SetGps(loc);
             }
         }
 
@@ -168,6 +169,11 @@ public class playercontroller : MonoBehaviour {
     void Update () {
         if (Input.GetKeyUp(KeyCode.Space))
         {
+            foreach (Transform child in transform)
+            {
+                if (child.name != "Canvas")
+                    Destroy(child);
+            }
             //upton.MockLoc(MockLocs[MockLoc_i]);
             Debug.Log(MockLocs[MockLoc_i]);
             MockLoc_i = (MockLoc_i + 1) % MockLocs.Length;
