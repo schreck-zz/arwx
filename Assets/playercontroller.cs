@@ -176,8 +176,10 @@ public class playercontroller : MonoBehaviour {
             {
                 Debug.Log(station);
                 var rad = Instantiate<radar_plain>(r_prefab, transform);
+                rad.transform.name = station;
                 rad.LoadRadarData(RadarURL(station));
                 rad.SetGps(MockLoc(MockLocs[MockLoc_i]));
+                rad.MockWH(new Vector2Int(600, 550));
             }
 
         }

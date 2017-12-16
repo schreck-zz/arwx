@@ -58,6 +58,12 @@ public class radar_plain : MonoBehaviour {
         UpdateOffset();
     }
 
+    public void MockWH(Vector2Int wh_)
+    {
+        wh = wh_;
+        UpdateOffset();
+    }
+
     private static Color32 ConvertAndroidColor(int aCol)
     {
         Color32 c;
