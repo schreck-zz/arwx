@@ -40,7 +40,11 @@ public class radar_plain : MonoBehaviour {
 
     public string Status()
     {
-        return "placeholder";
+
+        bool loc = (gps.x != 0f);
+        bool img = (wh.x != 0);
+        bool world = (gfw != null);
+        return (loc?"L":".")+(img?"I":".")+(world?"W":".");
     }
 
     public void LoadRadarData(string url)
