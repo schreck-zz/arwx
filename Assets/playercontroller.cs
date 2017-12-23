@@ -48,9 +48,11 @@ public class playercontroller : MonoBehaviour {
             loc_status = "found";
             loc = Input.location.lastData;
             var sl = ListNearestStations(loc);
-            foreach(string station in sl)
+            foreach (string station in sl)
             {
-                rads.Add(station, Instantiate<radar_plain>(r_prefab));
+                if (!rads.ContainsKey(station)){ 
+                    rads.Add(station, Instantiate<radar_plain>(r_prefab));
+                }
                 rads[station].LoadRadarData(RadarURL(station));
                 rads[station].SetGps(loc);
             }
@@ -113,9 +115,9 @@ public class playercontroller : MonoBehaviour {
         return ListNearestStations(new Vector2(x.longitude, x.latitude));
     }
 
+    // location mocks for personal computing
     private string[] MockLocs = new string[] { "Crown Heights", "Utica", "Portsmouth", "Delaware" };
-    private int MockLoc_i =0;
-
+    private int MockLoc_i = 0;
     public Vector2 MockLoc(string place)
     {
         var gps = new Vector2();
@@ -147,6 +149,18 @@ public class playercontroller : MonoBehaviour {
         return gps;
     }
 
+    private void reload_button()
+    {
+        Debug.Log("reloading");
+        StartCoroutine(check_location());
+    }
+
+    private void setup_ui()
+    {
+        Button btn = GetComponentInChildren<Button>();
+        btn.onClick.AddListener(reload_button);
+    }
+
     // Use this for initialization
     void Start()
     {
@@ -162,40 +176,31 @@ public class playercontroller : MonoBehaviour {
         Input.compass.enabled = true;
         initRot = new Quaternion(0, 0, 1, 0);
         loc_status = "looking";
+        // find yourself
         StartCoroutine(check_location());
-#if UNITY_EDITOR
-        Debug.Log(MockLoc("Utica"));
-#endif
+        // radars dictionary
         rads = new Dictionary<string, radar_plain>();
+        // status control
         Show = new Dictionary<string, bool>();
         Show.Add("gyro",false);
         Show.Add("compass",false);
         Show.Add("gps",true);
         Show.Add("master",true);
         Show.Add("rads", true);
-        Debug.Log(Show);
+        master_status = "loaded";
+        // setup UI
+        setup_ui();
+#if UNITY_EDITOR
+        Debug.Log(MockLoc("Utica"));
+#endif
     }
 
     // Update is called once per frame
     void Update () {
-        if (Input.GetKeyUp(KeyCode.Space))
-        {
-            //upton.MockLoc(MockLocs[MockLoc_i]);
-            Debug.Log(MockLocs[MockLoc_i]);
-            MockLoc_i = (MockLoc_i + 1) % MockLocs.Length;
-            var st = ListNearestStations(MockLoc(MockLocs[MockLoc_i]));
-            foreach (string station in st)
-            {
-                Debug.Log(station);
-                rads.Add(station,Instantiate<radar_plain>(r_prefab));
-                rads[station].transform.name = station;
-                rads[station].LoadRadarData(RadarURL(station));
-                rads[station].SetGps(MockLoc(MockLocs[MockLoc_i]));
-                rads[station].MockWH(new Vector2Int(600, 550));
-            }
 
-        }
+        // xform gyro
         transform.localRotation = (Quaternion.Euler(90f,90f,-90f))*GetGyro()*initRot;
+        
         // status display
         string status_txt = "<i>STATUS</i>:"+master_status;
         if (Show["gyro"]) 
@@ -214,10 +219,26 @@ public class playercontroller : MonoBehaviour {
             {
                 status_txt += "\n " + entry.Key + ":" + entry.Value.Status();
             }
-        }
-            
+        }            
         transform.GetChild(0).GetChild(0).GetComponent<Text>().text = status_txt;
 
-            
+        // pc mocks
+#if UNITY_EDITOR
+        if (Input.GetKeyUp(KeyCode.Space))
+        {
+            MockLoc_i = (MockLoc_i + 1) % MockLocs.Length;
+            var st = ListNearestStations(MockLoc(MockLocs[MockLoc_i]));
+            foreach (string station in st)
+            {
+                rads.Add(station, Instantiate<radar_plain>(r_prefab));
+                rads[station].transform.name = station;
+                rads[station].LoadRadarData(RadarURL(station));
+                rads[station].SetGps(MockLoc(MockLocs[MockLoc_i]));
+                rads[station].MockWH(new Vector2Int(600, 550));
+            }
+
+        }
+#endif
+
     }
 }

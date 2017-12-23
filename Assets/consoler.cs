@@ -24,8 +24,8 @@ public class consoler : MonoBehaviour {
 
     public void add(string line)
     {
-        text = line +"\n" + text;
-        commit();
+        //text = line +"\n" + text;
+        //commit();
         Debug.Log(line);
     }
 	

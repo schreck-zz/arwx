@@ -49,6 +49,9 @@ public class radar_plain : MonoBehaviour {
 
     public void LoadRadarData(string url)
     {
+        gps.x = 0f;
+        wh.x = 0;
+        gfw = null;
         StartCoroutine(world(url+".gfw"));
         StartCoroutine(img(url+".gif"));
     }
