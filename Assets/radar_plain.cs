@@ -36,6 +36,7 @@ public class radar_plain : MonoBehaviour {
     void Start () {
         con.add("start");
         //LoadRadarData("http://radar.weather.gov/ridge/RadarImg/N0R/OKX_N0R_0");
+        // https://radar.weather.gov/ridge/RadarImg/N0R/OKX/OKX_20171227_1945_N0R.gif
     }
 
     public string Status()
@@ -86,6 +87,20 @@ public class radar_plain : MonoBehaviour {
         return c;
     }
 
+    public void load_history(string url)
+    {
+        Debug.Log("history routine");
+        StartCoroutine(load_history_sub(url));
+    }
+
+    IEnumerator load_history_sub(string url)
+    {
+        Debug.Log("loading history");
+        WWW www = new WWW(url);
+        yield return www;
+        Debug.Log(www.text);
+    }
+
     IEnumerator world(string url)
     {
         con.add("world file send");
@@ -125,6 +140,8 @@ public class radar_plain : MonoBehaviour {
         WWW www = new WWW(url);
         yield return www;
         con.add("img recv " + www.bytesDownloaded);
+        // ANDROID ONLY
+
         AndroidJavaClass bmf = new AndroidJavaClass("android.graphics.BitmapFactory");
         AndroidJavaClass bm  = new AndroidJavaClass("android.graphics.Bitmap");
         // this bitmapfactory class method returns a Bitmap object
