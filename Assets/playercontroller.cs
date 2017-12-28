@@ -53,8 +53,7 @@ public class playercontroller : MonoBehaviour {
                 if (!rads.ContainsKey(station)){ 
                     rads.Add(station, Instantiate<radar_plain>(r_prefab));
                 }
-                rads[station].LoadRadarData(RadarURL(station));
-                rads[station].load_history(RadarHistDir(station));
+                rads[station].LoadRadarData(station);
                 rads[station].SetGps(loc);
             }
         }
@@ -73,18 +72,6 @@ public class playercontroller : MonoBehaviour {
             Quaternion a = Quaternion.Euler(355f, 274f, 270f);
             return a;
         }
-    }
-
-    private static string radar_base = "https://radar.weather.gov/ridge/RadarImg/N0R/";
-
-    private string RadarURL(string station)
-    {
-        return radar_base + station + "_N0R_0";
-    }
-
-    private string RadarHistDir(string station)
-    {
-        return radar_base + station;
     }
 
     public List<string> ListNearestStations(Vector2 x)
@@ -240,8 +227,7 @@ public class playercontroller : MonoBehaviour {
             {
                 rads.Add(station, Instantiate<radar_plain>(r_prefab));
                 rads[station].transform.name = station;
-                rads[station].LoadRadarData(RadarURL(station));
-                rads[station].load_history(RadarHistDir(station));
+                rads[station].LoadRadarData(station);
                 rads[station].SetGps(MockLoc(MockLocs[MockLoc_i]));
                 rads[station].MockWH(new Vector2Int(600, 550));
             }

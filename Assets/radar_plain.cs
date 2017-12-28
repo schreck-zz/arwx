@@ -1,16 +1,7 @@
 ﻿using System.Collections;
-using System.Collections.Generic;
+using System.Xml;
+using System.Text.RegularExpressions;
 using UnityEngine;
-
-/*// given a location [loc] from gps or something, find the offset (x,z) to potision this radar plane
-public Vector2 find_offset(LocationInfo loc)
-{
-
-    Vector2 offset = new Vector2(
-          10 * (.5f + (loc.longitude - corner.x) / (scale.x * w))
-        - 10 * (.5f - (loc.latitude  - corner.y) / (scale.y * h)));
-    return offset;
-}*/
 
 public class WorldFile
 {
@@ -27,47 +18,55 @@ public class WorldFile
 public class radar_plain : MonoBehaviour {
 
     private Transform plane; // child object 
-    public consoler con; // object specfic in-world debug log
+    private string station;
+    private static string radar_base = "https://radar.weather.gov/ridge/RadarImg/N0R/";
     // offset objects
     private WorldFile gfw; // world file data
     private Vector2 gps; // gps data
     private Vector2Int wh; // width and height of image download pixels
 
     void Start () {
-        con.add("start");
-        //LoadRadarData("http://radar.weather.gov/ridge/RadarImg/N0R/OKX_N0R_0");
-        // https://radar.weather.gov/ridge/RadarImg/N0R/OKX/OKX_20171227_1945_N0R.gif
+    }
+
+    private string RadarURL()
+    {
+        return radar_base + station + "_N0R_0";
+    }
+
+    private string RadarHistDir()
+    {
+        return radar_base + station+"/?F=0";
     }
 
     public string Status()
     {
-
         bool loc = (gps.x != 0f);
         bool img = (wh.x != 0);
         bool world = (gfw != null);
         return (loc?"L":".")+(img?"I":".")+(world?"W":".");
     }
 
-    public void LoadRadarData(string url)
+    public void LoadRadarData(string station_)
     {
+        station = station_;
+        var url = RadarURL();
         gps.x = 0f;
         wh.x = 0;
         gfw = null;
         StartCoroutine(world(url+".gfw"));
-        StartCoroutine(img(url+".gif"));
+        StartCoroutine(img(  url+".gif"));
+        StartCoroutine(load_history(RadarHistDir()));
     }
 
     public void SetGps(LocationInfo loc)
     {
         gps = new Vector2(loc.longitude, loc.latitude);
-        con.add("seting gps "+gps);
         UpdateOffset();
     }
 
     public void SetGps(Vector2 loc)
     {
         gps = loc;
-        con.add("seting gps " + gps);
         UpdateOffset();
     }
 
@@ -87,26 +86,24 @@ public class radar_plain : MonoBehaviour {
         return c;
     }
 
-    public void load_history(string url)
+    IEnumerator load_history(string url)
     {
-        Debug.Log("history routine");
-        StartCoroutine(load_history_sub(url));
-    }
-
-    IEnumerator load_history_sub(string url)
-    {
-        Debug.Log("loading history");
         WWW www = new WWW(url);
         yield return www;
-        Debug.Log(www.text);
+        XmlDocument xmlDoc = new XmlDocument();
+        var text = www.text.Insert(54, " \"\""); // HACK43 (https://stackoverflow.com/a/9225499) relax the xml parser?
+        Debug.Log(text);
+        xmlDoc.LoadXml(text);
+        foreach(XmlElement node in xmlDoc.GetElementsByTagName("a"))
+        {
+            Debug.Log(node.Attributes["href"].Value); // HACK44 should probably get the href
+        }
     }
 
     IEnumerator world(string url)
     {
-        con.add("world file send");
         WWW www = new WWW(url);
         yield return www;
-        con.add("world file rcv " + www.bytesDownloaded);
         string[] S_gfw = www.text.Split('\n'); // stringed gfw file
         if(S_gfw.Length == 7)
         {
@@ -136,12 +133,9 @@ public class radar_plain : MonoBehaviour {
 
     IEnumerator img(string url)
     {
-        con.add("img send");
         WWW www = new WWW(url);
         yield return www;
-        con.add("img recv " + www.bytesDownloaded);
         // ANDROID ONLY
-
         AndroidJavaClass bmf = new AndroidJavaClass("android.graphics.BitmapFactory");
         AndroidJavaClass bm  = new AndroidJavaClass("android.graphics.Bitmap");
         // this bitmapfactory class method returns a Bitmap object
@@ -178,7 +172,6 @@ public class radar_plain : MonoBehaviour {
                 texture.SetPixel(j,i,pc);
             }
         }
-        con.add("apixs " + apixs.GetHashCode());
         texture.Apply();
         plane = transform.GetChild(0);
         plane.GetComponent<Renderer>().material.mainTexture = texture;
@@ -207,8 +200,6 @@ public class radar_plain : MonoBehaviour {
                  plane_w*(.5f - dx_norm),
                 transform.position.y,
                 plane_h*((-.5f)-dy_norm));
-
-            con.add("updating offset " + transform.position);
         }
     }
 
