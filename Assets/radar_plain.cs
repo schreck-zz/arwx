@@ -1,6 +1,7 @@
 ﻿using System.Collections;
 using System.Xml;
-using System.Text.RegularExpressions;
+using System;
+using System.Collections.Generic;
 using UnityEngine;
 
 public class WorldFile
@@ -15,6 +16,63 @@ public class WorldFile
     }
 }
 
+public class radar_history {
+    private List<Texture2D> T;
+    private List<DateTime> TS;
+
+    public radar_history()
+    {
+        T = new List<Texture2D>();
+        TS = new List<DateTime>();
+    }
+
+    public void add(Texture2D t,DateTime ts)
+    {
+        T.Add(t);
+        TS.Add(ts);
+    }
+
+    public void add(Texture2D t, string fname)
+    {
+        var S = fname.Split('_');
+        // wrong length? exception
+        var ts = new DateTime(
+            Int32.Parse(S[1].Substring(0, 4)),
+            Int32.Parse(S[1].Substring(4, 2)),
+            Int32.Parse(S[1].Substring(6, 2)),
+            Int32.Parse(S[2].Substring(0, 2)),
+            Int32.Parse(S[2].Substring(2, 2)),
+            0);
+        add(t, ts);
+    }
+
+    public Texture2D asof(DateTime now)
+    {
+        var ts_0 = new TimeSpan(0, 0, 0);
+        var min = new TimeSpan(888, 8, 8, 8, 8); // HACK45 start from first interval?
+        int i_min = -1;
+        for(int i=0;i<TS.Count; i++)
+        {
+            // now - then
+            var foo = now - TS[i];
+            if (foo > ts_0) // i is in the past
+            {
+                if (foo < min) // closest without going over
+                {
+                    min = foo;
+                    i_min = i;
+                }
+            }
+        }
+        return T[i_min];
+    }
+
+    public int length()
+    {
+        return TS.Count;
+    }
+}
+
 public class radar_plain : MonoBehaviour {
 
     private Transform plane; // child object 
@@ -24,8 +82,10 @@ public class radar_plain : MonoBehaviour {
     private WorldFile gfw; // world file data
     private Vector2 gps; // gps data
     private Vector2Int wh; // width and height of image download pixels
+    private radar_history rh;
 
     void Start () {
+        rh = new radar_history();
     }
 
     private string RadarURL()
@@ -86,17 +146,25 @@ public class radar_plain : MonoBehaviour {
         return c;
     }
 
+    IEnumerator load_history_element(string url,string fname)
+    {
+        WWW www = new WWW(url);
+        yield return www;
+        Debug.Log("rcv "+www.bytesDownloaded);
+        rh.add(GifToTexture(www.bytes, www.bytesDownloaded), fname);
+        Debug.Log(fname + " loaded " + rh.length());
+    }
+
     IEnumerator load_history(string url)
     {
         WWW www = new WWW(url);
         yield return www;
         XmlDocument xmlDoc = new XmlDocument();
         var text = www.text.Insert(54, " \"\""); // HACK43 (https://stackoverflow.com/a/9225499) relax the xml parser?
-        Debug.Log(text);
         xmlDoc.LoadXml(text);
         foreach(XmlElement node in xmlDoc.GetElementsByTagName("a"))
         {
-            Debug.Log(node.Attributes["href"].Value); // HACK44 should probably get the href
+            StartCoroutine(load_history_element(url + "/" + node.Attributes["href"].Value, node.Attributes["href"].Value));
         }
     }
 
@@ -135,17 +203,27 @@ public class radar_plain : MonoBehaviour {
     {
         WWW www = new WWW(url);
         yield return www;
+        plane = transform.GetChild(0);
+#if UNITY_ANDROID
+        plane.GetComponent<Renderer>().material.mainTexture = GifToTexture(www.bytes,www.bytesDownloaded);
+#endif
+        UpdateOffset();
+        yield return "good";
+    }
+
+#if UNITY_ANDROID
+    private Texture2D GifToTexture(byte[] bytes, int length) {
         // ANDROID ONLY
         AndroidJavaClass bmf = new AndroidJavaClass("android.graphics.BitmapFactory");
-        AndroidJavaClass bm  = new AndroidJavaClass("android.graphics.Bitmap");
+        AndroidJavaClass bm = new AndroidJavaClass("android.graphics.Bitmap");
         // this bitmapfactory class method returns a Bitmap object
-        AndroidJavaObject bmo = bmf.CallStatic<AndroidJavaObject>("decodeByteArray",new object[] { www.bytes, 0, www.bytesDownloaded });
+        AndroidJavaObject bmo = bmf.CallStatic<AndroidJavaObject>("decodeByteArray", new object[] { bytes, 0, length });
         // we van figure out the width and height of the gif data
         int h = bmo.Call<int>("getHeight", new object[] { });
         int w = bmo.Call<int>("getWidth", new object[] { });
         wh = new Vector2Int(w, h); // set the global wh for offsetment
-        // the trick is getting the pixels without calling the JNI to often i.e. _getPixel()_
-        // setup java inputs for BitMap.getPixels
+                                   // the trick is getting the pixels without calling the JNI to often i.e. _getPixel()_
+                                   // setup java inputs for BitMap.getPixels
         System.IntPtr pixs = AndroidJNI.NewIntArray(h * w);
         jvalue[] gpargs;
         gpargs = new jvalue[7];
@@ -157,7 +235,7 @@ public class radar_plain : MonoBehaviour {
         gpargs[5].i = w;
         gpargs[6].i = h;
         // this is the same as `bmo.getPixels(pixs,0,w,0,0,w,h)` but in raw AndroidJNI calls because pixs is a pointer to an int[] buffer
-        AndroidJNI.CallVoidMethod(bmo.GetRawObject(), AndroidJNI.GetMethodID(bm.GetRawClass(), "getPixels","([IIIIIII)V"), gpargs);
+        AndroidJNI.CallVoidMethod(bmo.GetRawObject(), AndroidJNI.GetMethodID(bm.GetRawClass(), "getPixels", "([IIIIIII)V"), gpargs);
         int[] apixs;
         apixs = AndroidJNI.FromIntArray(pixs);
         //
@@ -165,19 +243,17 @@ public class radar_plain : MonoBehaviour {
         var texture = new Texture2D(w, h, TextureFormat.ARGB32, false);
         for (int i = 0; i < h; i++)
         {
-            for(int j = 0; j < w; j++)
+            for (int j = 0; j < w; j++)
             {
                 int pixel = apixs[j + w * i];
                 Color32 pc = ConvertAndroidColor(pixel);
-                texture.SetPixel(j,i,pc);
+                texture.SetPixel(j, i, pc);
             }
         }
         texture.Apply();
-        plane = transform.GetChild(0);
-        plane.GetComponent<Renderer>().material.mainTexture = texture;
-        UpdateOffset();
-        yield return "good";
+        return texture;
     }
+#endif
 
     void UpdateOffset()
     {
