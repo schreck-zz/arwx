@@ -146,7 +146,7 @@ public class playercontroller : MonoBehaviour {
 
     private void reload_button()
     {
-        Debug.Log("reloading");
+        Debug.Log("DBG: reloading");
         StartCoroutine(check_location());
     }
 
