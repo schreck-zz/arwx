@@ -146,7 +146,6 @@ public class playercontroller : MonoBehaviour {
 
     private void reload_button()
     {
-        Debug.Log("DBG: reloading");
         StartCoroutine(check_location());
     }
 
@@ -154,6 +153,7 @@ public class playercontroller : MonoBehaviour {
     {
         Button btn = GetComponentInChildren<Button>();
         btn.onClick.AddListener(reload_button);
+        Toggle tgl = GetComponentInChildren<Toggle>();
     }
 
     // Use this for initialization
@@ -212,7 +212,7 @@ public class playercontroller : MonoBehaviour {
             status_txt += "\n<b>rads:</b>";
             foreach (KeyValuePair<string, radar_plain> entry in rads)
             {
-                status_txt += "\n " + entry.Key + ":" + entry.Value.Status();
+                status_txt += "\n " + entry.Key + ":" + entry.Value.StatusDisplay();
             }
         }            
         transform.GetChild(0).GetChild(0).GetComponent<Text>().text = status_txt;

@@ -17,25 +17,22 @@ public class WorldFile
 }
 
 public class radar_history {
-    private List<byte[]> B;
     private List<Texture2D> T;
     private List<DateTime> TS;
 
     public radar_history()
     {
-        B = new List<byte[]>();
         T = new List<Texture2D>();
         TS = new List<DateTime>();
     }
 
-    public void add(byte[] b,DateTime ts)
+    public void add(Texture2D t,DateTime ts)
     {
-        B.Add(b);
-        T.Add(new Texture2D(10,10));
+        T.Add(t);
         TS.Add(ts);
     }
 
-    public void add(byte[] b, string fname)
+    public void add(Texture2D t, string fname)
     {
         var S = fname.Split('_');
         // wrong length? exception
@@ -52,7 +49,7 @@ public class radar_history {
                 Int32.Parse(S[2].Substring(0, 2)),
                 Int32.Parse(S[2].Substring(2, 2)),
                 0);
-            add(b, ts);
+            add(t, ts);
         }
     }
 
@@ -92,11 +89,12 @@ public class radar_plain : MonoBehaviour {
     private WorldFile gfw; // world file data
     private Vector2 gps; // gps data
     private Vector2Int wh; // width and height of image download pixels
-    private radar_history<byte[]> rh; // stores historical radar textures
+    private radar_history rh; // stores historical radar textures
     private Texture2D now_image; // the image from now.
+    private Texture2D last_converted; // the last image converted.
 
     void Start () {
-        rh = new radar_history<byte[]>();
+        rh = new radar_history();
     }
 
     private string RadarURL()
@@ -109,12 +107,17 @@ public class radar_plain : MonoBehaviour {
         return radar_base + station;
     }
 
-    public string Status()
+    public string StatusDisplay()
     {
         bool loc = (gps.x != 0f);
         bool img = (wh.x != 0);
         bool world = (gfw != null);
         return (loc?"L":".")+(img?"I":".")+(world?"W":".")+"h(<i>"+rh.length()+"</i>)";
+    }
+
+    public int HistoryCount()
+    {
+        return rh.length();
     }
 
     public void LoadRadarData(string station_)
@@ -124,9 +127,13 @@ public class radar_plain : MonoBehaviour {
         gps.x = 0f;
         wh.x = 0;
         gfw = null;
-        StartCoroutine(world(url+".gfw"));
-        StartCoroutine(img(  url+".gif"));
-        StartCoroutine(load_history(RadarHistDir()));
+        StartCoroutine(LoadRadarDataEnum(url));
+    }
+
+    IEnumerator LoadRadarDataEnum(string url) {
+        yield return StartCoroutine(world(url + ".gfw"));
+        yield return StartCoroutine(img(url + ".gif"));
+        yield return StartCoroutine(load_history(RadarHistDir()));
     }
 
     public void SetGps(LocationInfo loc)
@@ -164,12 +171,11 @@ public class radar_plain : MonoBehaviour {
             if (name.Substring(0, 3).Equals(station)) // skip bad fnames
             {
                 WWW www = new WWW(url + "/" + name);
-                Debug.Log("loading " + url + "/" + name);
                 yield return www;
-                Debug.Log("   back " + url + "/" + name + ": " + www.bytesDownloaded);
-                rh.add(www.bytes, name);
-                Console.WriteLine("hello");
-                Debug.Log(name + ":" + rh.length());
+                //Debug.Log("Converter coroutine "+name);
+                yield return StartCoroutine(GifToTextureAndroid(www.bytes, www.bytesDownloaded));
+                //Debug.Log("Converter done      " + name);
+                rh.add(last_converted, name);
             }
         }
     }
@@ -181,12 +187,15 @@ public class radar_plain : MonoBehaviour {
         XmlDocument xmlDoc = new XmlDocument();
         var text = www.text.Insert(54, " \"\""); // HACK43 (https://stackoverflow.com/a/9225499) relax the xml parser?
         xmlDoc.LoadXml(text);
+        yield return null;
         var names = new List<string>(0);
         foreach (XmlElement node in xmlDoc.GetElementsByTagName("a"))
         {
             names.Add(node.Attributes["href"].Value);
         }
+        yield return null;
         StartCoroutine(load_history_element(url, names));
+        yield return null;
     }
 
     IEnumerator world(string url)
@@ -225,15 +234,17 @@ public class radar_plain : MonoBehaviour {
         WWW www = new WWW(url);
         yield return www;
         plane = transform.GetChild(0);
-        now_image = GifToTexture(www.bytes, www.bytesDownloaded);
+        Debug.Log(station+" : image load ");
+        yield return StartCoroutine(GifToTextureAndroid(www.bytes, www.bytesDownloaded));
+        Debug.Log(station + " : image loaded ");
+        now_image = last_converted;
         plane.GetComponent<Renderer>().material.mainTexture = now_image;
         UpdateOffset();
-        yield return "good";
+        yield break;
     }
 
-    private Texture2D GifToTextureAndroid(byte[] bytes,int length)
+    private int[] GifToIntAA(byte[] bytes, int length)
     {
-        Debug.Log("ag2t 0");
         AndroidJavaClass bmf = new AndroidJavaClass("android.graphics.BitmapFactory");
         AndroidJavaClass bm = new AndroidJavaClass("android.graphics.Bitmap");
         // this bitmapfactory class method returns a Bitmap object
@@ -245,7 +256,6 @@ public class radar_plain : MonoBehaviour {
                                    // the trick is getting the pixels without calling the JNI to often i.e. _getPixel()_
                                    // setup java inputs for BitMap.getPixels
         System.IntPtr pixs = AndroidJNI.NewIntArray(h * w);
-        Debug.Log("ag2t 10");
         jvalue[] gpargs;
         gpargs = new jvalue[7];
         gpargs[0].l = pixs;
@@ -257,33 +267,30 @@ public class radar_plain : MonoBehaviour {
         gpargs[6].i = h;
         // this is the same as `bmo.getPixels(pixs,0,w,0,0,w,h)` but in raw AndroidJNI calls because pixs is a pointer to an int[] buffer
         AndroidJNI.CallVoidMethod(bmo.GetRawObject(), AndroidJNI.GetMethodID(bm.GetRawClass(), "getPixels", "([IIIIIII)V"), gpargs);
-        int[] apixs;
-        apixs = AndroidJNI.FromIntArray(pixs);
-        //
-        // paint a texture with the pixels
-        var texture = new Texture2D(w, h, TextureFormat.ARGB32, false);
-        for (int i = 0; i < h; i++)
-        {
-            for (int j = 0; j < w; j++)
-            {
-                int pixel = apixs[j + w * i];
-                Color32 pc = ConvertAndroidColor(pixel);
-                texture.SetPixel(j, i, pc);
-            }
-        }
-        Debug.Log("ag2t 30");
-        texture.Apply();
-        return texture;
+        return AndroidJNI.FromIntArray(pixs);
     }
 
-    private Texture2D GifToTexture(byte[] bytes, int length) {
-        Texture2D texture;
-#if UNITY_EDITOR
-        texture = new Texture2D(10, 10);
-#elif UNITY_ANDROID
-        texture = GifToTextureAndroid(bytes,length);
-#endif
-        return texture;
+    IEnumerator GifToTextureAndroid(byte[] bytes,int length)
+    {
+        // peformance (http://altdevblog.com/2011/07/07/unity3d-coroutines-in-detail/)
+        //   need to make sure the compute between yields is less than 33 ms
+        var apixs = GifToIntAA(bytes, length);
+        yield return "hello";
+        // paint a texture with the pixels
+        last_converted = new Texture2D(wh.x, wh.y, TextureFormat.ARGB32, false);
+        for (int i = 0; i < wh.y; i++)
+        {
+            for (int j = 0; j < wh.x; j++)
+            {
+                int pixel = apixs[j + wh.x * i];
+                Color32 pc = ConvertAndroidColor(pixel);
+                last_converted.SetPixel(j, i, pc);
+            }
+            if(0==i%50)
+                yield return null;
+        }
+        last_converted.Apply();
+        yield break;
     }
 
     void UpdateOffset()
