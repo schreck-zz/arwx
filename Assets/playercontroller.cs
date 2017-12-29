@@ -12,6 +12,8 @@ public class playercontroller : MonoBehaviour {
     private Dictionary<string,bool> Show;
     private string master_status;
     private Dictionary<string,radar_plain> rads;
+    private float anim__time_speed; // s/s
+    private float anim__look_back; // s
 
     IEnumerator check_location()
     {
@@ -160,6 +162,8 @@ public class playercontroller : MonoBehaviour {
     void Start()
     {
         master_status = "init";
+        anim__look_back = 60f * 15f * 15f; // look back 15 x 15 minutes
+        anim__time_speed = 15f * 60f / 0.033f; // 15 min / 33 ms / s
         if (SystemInfo.supportsGyroscope)
         {
             Input.gyro.enabled = true;
